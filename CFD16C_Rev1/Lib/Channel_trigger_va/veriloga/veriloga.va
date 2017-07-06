@@ -1,0 +1,56 @@
+// VerilogA for Lib, Channel_trigger, veriloga
+
+`include "constants.vams"
+`include "disciplines.vams"
+
+`define NCHANNELS 16 //number of channels in the chip
+
+module Channel_trigger(IN, OUT, AVDD, AVSS, SVSS);
+	input[`NCHANNELS-1:0] IN;
+	output OUT;
+	input AVDD, AVSS, SVSS;
+
+	electrical[`NCHANNELS-1:0] IN;
+	electrical OUT;
+	electrical AVDD, AVSS, SVSS;
+
+	parameter real tr = 1n; //rise time
+	parameter real tf = 1n; //fall time
+	parameter real tpd = 3n; //propogation delay
+	parameter real time_tol = 100p; //the time tolerance for crossings
+
+	real vth, voh, vol; //threshold, output high, and output low logic voltages.
+	integer inp[`NCHANNELS-1:0]; //input logic states
+	genvar j; //genvar for unrolled loops
+	integer i; //integer for looping
+	integer or_logic; //logic state of the or gate
+	real vo; //output voltage
+
+	analog begin
+		@(initial_step) begin
+			/* initialize the input states to 0 */
+			for(i = 0; i < `NCHANNELS; i = i + 1) begin
+				inp[i] = 0;
+			end
+		end
+		
+		/* Determine the logic voltages */
+		voh = V(AVDD);
+		vol = V(AVSS);
+		vth = (voh+vol)/2.0;
+
+		/* determine the output state */
+		or_logic = 0;
+		for(j = 0; j < `NCHANNELS; j = j + 1) begin
+			@(cross(V(IN[j]) - vth, 0, time_tol)) begin
+				inp[j] = V(IN[j]) > vth;
+			end
+			or_logic = or_logic || inp[j];
+		end
+	
+		/* Drive the output high or low depending on the state */
+		vo = (or_logic) ? voh:vol;
+		V(OUT) <+ transition(vo, tpd, tr, tf);
+	end
+
+endmodule

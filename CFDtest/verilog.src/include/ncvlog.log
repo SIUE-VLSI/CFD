@@ -1,0 +1,64 @@
+ncvlog: 09.20-s038: (c) Copyright 1995-2011 Cadence Design Systems, Inc.
+TOOL:	ncvlog	09.20-s038: Started on Apr 03, 2017 at 16:04:47 CDT
+ncvlog
+    -cdslib /home/HINP/cds/HINPtest/cds.lib
+    -hdlvar /home/HINP/cds/HINPtest/hdl.var
+    -logfile ./ncvlog.log
+    -errormax 15
+    -update
+    -linedebug
+    -status
+    -sv
+    verilog_driver_tasks.sv
+    -messages
+
+file: verilog_driver_tasks.sv
+   return ((`CONV_FACTOR * energy) / `PULSE_WIDTH) ;
+                       |
+ncvlog: *E,NOTDIR (verilog_driver_tasks.sv,9|23): `CONV_FACTOR: not a recognized directive or macro [2.7.3][16.3.1][16(IEEE)].
+   return ((`CONV_FACTOR * energy) / `PULSE_WIDTH) ;
+                         |
+ncvlog: *E,ILLPRI (verilog_driver_tasks.sv,9|25): illegal expression primary [4.2(IEEE)].
+   return ((`CONV_FACTOR * energy) / `PULSE_WIDTH) ;
+                                                |
+ncvlog: *E,NOTDIR (verilog_driver_tasks.sv,9|48): `PULSE_WIDTH: not a recognized directive or macro [2.7.3][16.3.1][16(IEEE)].
+   return ((`CONV_FACTOR * energy) / `PULSE_WIDTH) ;
+                                                 |
+ncvlog: *E,ILLPRI (verilog_driver_tasks.sv,9|49): illegal expression primary [4.2(IEEE)].
+   return ((`CONV_FACTOR * energy) / `PULSE_WIDTH) ;
+                                                   |
+ncvlog: *E,RETFNE (verilog_driver_tasks.sv,9|51): The 'return' from function statement must have a value expression [SystemVerilog].
+	collect_electrons = `COLLECT_ELECTRONS ;  // collect electrons
+	                                     |
+ncvlog: *E,NOTDIR (verilog_driver_tasks.sv,22|38): `COLLECT_ELECTRONS: not a recognized directive or macro [2.7.3][16.3.1][16(IEEE)].
+	collect_electrons = `COLLECT_ELECTRONS ;  // collect electrons
+	                                       |
+ncvlog: *E,ILLPRI (verilog_driver_tasks.sv,22|40): illegal expression primary [4.2(IEEE)].
+	dac_sgn = ~(`COLLECT_ELECTRONS) ;
+	                             |
+ncvlog: *E,NOTDIR (verilog_driver_tasks.sv,42|30): `COLLECT_ELECTRONS: not a recognized directive or macro [2.7.3][16.3.1][16(IEEE)].
+	dac_sgn = ~(`COLLECT_ELECTRONS) ;
+	                              |
+ncvlog: *E,ILLPRI (verilog_driver_tasks.sv,42|31): illegal expression primary [4.2(IEEE)].
+	dac_sgn = ~(`COLLECT_ELECTRONS) ;
+	                              |
+ncvlog: *E,NOTSTT (verilog_driver_tasks.sv,42|31): expecting a statement [9(IEEE)].
+#(`LEN_RESET)
+           |
+ncvlog: *E,NOTDIR (verilog_driver_tasks.sv,60|11): `LEN_RESET: not a recognized directive or macro [2.7.3][16.3.1][16(IEEE)].
+#(`LEN_RESET)
+            |
+ncvlog: *E,ILLPRI (verilog_driver_tasks.sv,60|12): illegal expression primary [4.2(IEEE)].
+#(`LEN_FORCE_RST)
+               |
+ncvlog: *E,NOTDIR (verilog_driver_tasks.sv,72|15): `LEN_FORCE_RST: not a recognized directive or macro [2.7.3][16.3.1][16(IEEE)].
+#(`LEN_FORCE_RST)
+                |
+ncvlog: *E,ILLPRI (verilog_driver_tasks.sv,72|16): illegal expression primary [4.2(IEEE)].
+		#(`SCLK_PERIOD / 2.0)
+		             |
+ncvlog: *E,NOTDIR (verilog_driver_tasks.sv,166|15): `SCLK_PERIOD: not a recognized directive or macro [2.7.3][16.3.1][16(IEEE)].
+ncvlog: *F,MAXERR: maximum error count reached (15).
+ncvlog: Memory Usage - 11.3M program + 10.3M data = 21.6M total
+ncvlog: CPU Usage - 0.0s system + 0.0s user = 0.0s total (0.0s, 39.0% cpu)
+TOOL:	ncvlog	09.20-s038: Exiting on Apr 03, 2017 at 16:04:47 CDT  (total: 00:00:00)

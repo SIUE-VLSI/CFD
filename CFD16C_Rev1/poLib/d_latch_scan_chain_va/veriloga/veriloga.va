@@ -1,0 +1,68 @@
+// VerilogA for poLib, d_latch_scan_chain_va, veriloga
+
+`include "constants.vams"
+`include "disciplines.vams"
+
+module d_latch_scan_chain_va(D, SI, CLK, SI_CLK, SO_CLK, avdd, avss, svss, Q, SO);
+//input & output
+	input D, SI, CLK, SI_CLK, SO_CLK, avdd, avss, svss;
+	output Q, SO;
+
+	electrical D, SI, CLK, SI_CLK, SO_CLK, avdd, avss, svss, Q, SO;
+
+//parameter
+	parameter tr = 1n;
+	parameter tf = 1n;
+	parameter tpd = 5n;
+	parameter time_tol = 100p;
+
+	real d_value, si_value, voh, vol, vth, q, so;
+
+
+//Behavioral description
+	analog begin
+		voh = V(avdd);
+		vol = V(avss);
+		vth = (voh + vol) / 2.0;
+	//CLK
+		@(initial_step or cross(V(CLK)-vth, 1, time_tol)) begin
+			d_value = V(D);
+			q = d_value;
+			so = d_value;
+		end
+		@(initial_step or cross(V(CLK)-vth, -1, time_tol)) begin
+			d_value = d_value;
+			q = d_value;
+			so = d_value;
+		end
+	//SI_CLK
+		@(initial_step or cross(V(SI_CLK)-vth, 1, time_tol)) begin
+			si_value = V(SI);
+			//V(Q) = si_value;
+		end
+		@(initial_step or cross(V(SI_CLK)-vth, -1, time_tol)) begin
+			si_value = si_value;
+			//V(Q) = si_value;
+		end
+	//SO_CLK
+		@(initial_step or cross(V(SO_CLK)-vth, 0, time_tol)) begin
+			q = si_value;
+			so = si_value;
+		end
+
+//Assign appropriate voltage to output node
+		V(Q) <+ transition(q, tpd, tr, tf);
+		V(SO) <+ transition(so, tpd, tr, tf);
+
+	end
+endmodule
+
+
+
+
+
+
+
+
+
+

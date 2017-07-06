@@ -1,0 +1,20 @@
+ncvlog: 09.20-s038: (c) Copyright 1995-2011 Cadence Design Systems, Inc.
+TOOL:	ncvlog	09.20-s038: Started on Sep 16, 2014 at 09:13:11 CDT
+ncvlog
+    -cdslib /local_home/gle/cds/HINPtest/cds.lib
+    -hdlvar /local_home/gle/cds/HINPtest/hdl.var
+    -logfile ./ncvlog.log
+    -errormax 15
+    -update
+    -linedebug
+    -status
+    -sv
+    verilog_driver_tb.sv
+    -messages
+
+file: verilog_driver_tb.sv
+	module worklib.verilog_driver_tb
+		errors: 0, warnings: 0
+ncvlog: Memory Usage - 11.3M program + 9.7M data = 21.0M total
+ncvlog: CPU Usage - 0.0s system + 0.0s user = 0.0s total (0.0s, 75.4% cpu)
+TOOL:	ncvlog	09.20-s038: Exiting on Sep 16, 2014 at 09:13:11 CDT  (total: 00:00:00)

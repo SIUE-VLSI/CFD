@@ -1,0 +1,118 @@
+// VerilogA for Lib, CFD_pads_tester, veriloga
+
+`include "constants.vams"
+`include "disciplines.vams"
+
+`define		MODE_BITS	4
+`define		ADDR_BITS	4
+`define		DATA_BITS	6
+`define		IO_BITS		16
+
+module CFD_pads_tester(avss, avdd, agnd, svss, dout, ain, dvdd3, si_clk, shin, so_clk, sout, stb, mode, addr, data);
+	output avdd, avss, agnd, svss, dvdd3, si_clk, shin, so_clk, sout, stb;
+	output[`MODE_BITS-1:0] mode;
+	output[`ADDR_BITS-1:0] addr;
+	output[`DATA_BITS-1:0] data;
+	output[`IO_BITS-1:0] ain, dout;
+
+	electrical avdd, avss, agnd, svss, dvdd3, si_clk, shin, so_clk, sout, stb;
+	electrical[`MODE_BITS-1:0] mode;
+	electrical[`ADDR_BITS-1:0] addr;
+	electrical[`DATA_BITS-1:0] data;
+	electrical[`IO_BITS-1:0] ain, dout;
+
+	parameter real vin = 2.9; //input pulse voltages
+	parameter real vout = 5; //output voltage
+	parameter real vdd3 = 3.3; //3.3v supply
+	parameter real vdda = 5; //analog supply
+	parameter real gnda = 2.5; //analog ground
+	parameter real vsub = 0; //subtrate voltage
+	parameter real vssa = 0; //analog negative supply
+	parameter real vclk = 5; //voltages for the stb, si_clk, and so_clk signals
+	parameter real vbus = 5; //voltages for the addr, mode, and data busses
+	parameter real fshift = 100k; //shift clk frequency
+	parameter real fstb = 1M; //stb frequency
+	parameter real vshift = 5;
+	parameter real tau_r = 3n from[3n:100n]; //time constant for exp pulse
+	parameter real time_tol = 100p; //time tolerance
+	parameter real fpulse = 100k; //frequence of input pulses
+	parameter real trf = 3n; //rise/fall time of transitions.
+	parameter real tpd = 3n; //propogation delay for transitions
+
+	real t0, t, tshift, tstb, tpulse, exp_pulse, stbv, siv, sov, vstb, tl1, tl2, th1, th2;
+	genvar j;
+	
+	analog begin
+		/* Initially calculate pulse widths, and set timer values to 0 */
+		@(initial_step) begin
+			tshift = 1.0/fshift;
+			tstb = 1.0/fstb;
+			tpulse = 1.0/fpulse;
+			tl1 = 0;
+			tl2 = 0;
+		end
+
+		$bound_step(100p);
+		
+		/* timer to set exp pulse t0 value */
+		@(timer(tpulse/8, tpulse, time_tol)) begin
+			t0 = $abstime;
+		end
+
+		/* The next four timers are for generating the shift clks
+		 * and stb clk signals. */
+		@(timer(tl1)) begin //make shift clks low. 
+			th1 = $abstime + tshift;
+			siv = vssa;
+			sov = vssa;
+		end
+
+		@(timer(tl2)) begin //make stb clk low
+			th2 = $abstime + tstb;
+			vstb = vssa;
+		end	
+
+		@(timer(th1)) begin //make shift clks high
+			tl1 = $abstime + tshift;
+			siv = vclk;
+			sov = vclk;
+		end
+		
+		@(timer(th2)) begin //make stb clk low.
+			tl2 = $abstime + tstb;
+			vstb = vclk;
+		end
+
+		/* Assign all nodal volatages */
+		V(avdd) <+ vdda;
+		V(dvdd3) <+ vdd3;
+		V(agnd) <+ gnda;
+		V(svss) <+ vsub;
+		V(avss) <+ vssa;
+
+		V(shin) <+ vshift;
+		V(sout) <+ vshift;
+		V(si_clk) <+ transition(siv, tpd, trf, trf);
+		V(so_clk) <+ transition(sov, tpd, trf, trf);
+		V(stb) <+ transition(vstb, tpd, trf, trf);
+
+		t = $abstime;
+		exp_pulse = exp(-(t-t0)/(10.0*tau_r)) - exp(-(t-t0)/tau_r);
+
+		for(j = 0; j < `IO_BITS; j = j+1) begin
+			V(ain[j], agnd) <+ exp_pulse*vin*1.45;
+		end
+
+		for(j = 0; j < `MODE_BITS; j = j+1) begin
+			V(mode[j]) <+ transition(vbus, tpd, trf, trf);
+		end
+
+		for(j = 0; j < `ADDR_BITS; j = j+1) begin
+			V(addr[j]) <+ transition(vbus, tpd, trf, trf);
+		end
+
+		for(j = 0; j < `DATA_BITS; j = j+1) begin
+			V(data[j]) <+ transition(vbus, tpd, trf, trf);
+		end
+	end
+endmodule

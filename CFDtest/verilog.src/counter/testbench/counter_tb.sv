@@ -1,0 +1,65 @@
+//
+// Testbench for simple 3 bit counter along with a real output
+// This is a system verilog testbench
+//
+`timescale  1ns/1ps
+
+// 100 ns clock period
+
+`define		PERIOD		100
+
+// Apply reset for 5.5 clock periods
+
+`define		LEN_OF_RESET	5
+
+// Run simulator for 30 clock periods
+
+`define		LEN_OF_SIM	30
+
+// Here is the testbench
+
+module counter_tb ;
+
+real num ;
+
+// Reset pulse
+
+reg reset ;
+initial begin
+	reset = 1 ;
+	#  (`LEN_OF_RESET * `PERIOD + 0.5)   reset = 0 ;
+end
+
+// Clock generator
+
+reg  clk ;
+initial begin
+	clk = 0	;
+	forever #(`PERIOD / 2) clk = ~clk ;
+end
+
+// Need to create a VCD (Value Change Dump) file
+
+initial begin
+    $dumpfile("/local_home/gle/cds/HINPtest/vcd/counter.vcd") ;
+    $dumpvars(1) ;
+end
+
+// Run simulation for a bit and then finish
+
+initial begin
+     	# (`LEN_OF_SIM * `PERIOD)	$finish ;
+end
+
+// Instantiate the counter
+// This counter also has a real output
+
+wire  c0, c1, c2 ;
+
+counter  dut	(.clk(clk), 
+ 		 .reset(reset), 
+		 .count({c2, c1, c0}),
+                 .num(num)
+		) ;
+
+endmodule

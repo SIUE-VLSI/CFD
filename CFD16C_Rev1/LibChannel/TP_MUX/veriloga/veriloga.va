@@ -1,0 +1,56 @@
+// VerilogA for LibChannel, TP_MUX, veriloga
+
+`include "constants.vams"
+`include "disciplines.vams"
+
+`define		NUMIN 	8
+`define		NUMSEL	3
+module TP_MUX(SEL, IN, OUT, AVDD, AVSS, AGND, SVSS);
+	input AVDD, AVSS, SVSS, AGND;
+	input[`NUMSEL-1:0] SEL;	
+	input[`NUMIN-1:0] IN;
+	output OUT;
+
+	electrical AVDD, AVSS, SVSS, AGND;
+	electrical[`NUMSEL-1:0] SEL;	
+	electrical[`NUMIN-1:0] IN;
+	electrical OUT;
+
+	parameter real tr = 500p; //rise time
+	parameter real tf = 500p; //fall time
+	parameter real tpd = 3n; //propogation dealy
+	parameter real sr = 100M;
+	parameter real time_tol = 100p; //time tolerance
+
+	/*logic voltages*/
+	real voh, vol, vth, val;
+	real vout; //output voltage
+	real weight; //bit weight
+	genvar j; //genvar for unrolled loops
+
+	analog begin
+		voh = V(AVDD);
+		vol = V(AVSS);
+		vth = (voh+vol)/2.0;
+		
+		//weight of the bit being evaluated
+		weight = 1.0;
+		//decimal value on the select lines
+		val = 0;
+
+		//determine the select lines
+		for(j = 0; j < `NUMSEL; j = j + 1) begin
+			val = val + ((V(SEL[j]) > vth) ? weight:0);
+			weight = weight*2;
+		end		
+
+		
+		/* pass the appropriate channel through */
+		for(j = 0; j < `NUMIN; j = j + 1) begin
+			vout = (val == j) ? V(IN[j]):vout;
+		end
+		
+		V(OUT) <+ slew(vout, sr);
+		//V(OUT) <+ absdelay(vout, tpd);
+	end
+endmodule

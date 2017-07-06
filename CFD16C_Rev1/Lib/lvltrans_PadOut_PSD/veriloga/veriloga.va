@@ -1,0 +1,51 @@
+// VerilogA for Lib, lvltrans_PadOut_PSD, veriloga
+
+`include "constants.vams"
+`include "disciplines.vams"
+
+/* The Digital Output pad is composed of a PFET and an NFET connected as diodes.
+*  The PFET source, gate, and bulk are connected to VDD1. It's drain is connected to SIGNAL.
+*  The NFET drain, gate, and bulk are connected to GND1. It's source is connected to SIGNAL..
+*/
+module lvltrans_PadOut_PSD(Pad, DataOut, GND1, GND2, VDD1, VDD2);
+	output Pad;
+	electrical Pad;
+	input DataOut;
+	electrical DataOut;
+	input GND1;
+	electrical GND1;
+	input GND2;
+	electrical GND2;
+	input VDD1;
+	electrical VDD1;
+	input VDD2;
+	electrical VDD2;
+
+	//The propogation delay
+	parameter real tpd = 4n;
+	parameter real tr = 1n;
+	parameter real tf = 1n;
+
+	//Leakage current Is, parasitic capacitance, and series resistance for the two diodes.
+	parameter real Isn = 100n from[1n:1u];
+	parameter real Isp = 100n from[1n:1u];	
+	parameter real Cp = 1p from[1p:500p];
+	parameter real Rs = 200 from[1:1k];
+
+	//logic levels for the inverters
+	real voh, vol, vth, dout, doutb;	
+
+	analog begin
+		voh = V(VDD1);
+		vol = V(GND1);
+		vth = (voh+vol)/2.0;
+
+		I(DataOut, VDD1) <+ Isp*((limexp(V(DataOut, VDD1) - Rs*I(DataOut, VDD1))/$vt) - 1.0);
+		I(GND1, DataOut) <+ Isn*((limexp(V(GND1, DataOut) - Rs*I(GND1, DataOut))/$vt) - 1.0);
+		I(DataOut) <+ Cp*ddt(V(DataOut));
+
+	
+		V(Pad) <+ transition((voh/5.0)*V(DataOut), tpd, tr, tf);
+	end
+
+endmodule

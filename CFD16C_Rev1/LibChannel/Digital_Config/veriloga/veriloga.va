@@ -1,0 +1,102 @@
+// VerilogA for Lib, Digital_Config, veriloga
+
+`include "constants.vams"
+`include "disciplines.vams"
+
+`define SBITS 	4
+`define LEBITS 	5
+`define CVBITS	6
+
+module Digital_Config(CVDAC, LEDAC, S, SOUT, ADDR, DATA, DGND, DVDD3, DVDD5, MODE, SIN, SI_CLK, SO_CLK, STB, SVSS);
+	output [5:0] CVDAC;
+	electrical [5:0] CVDAC;
+	output [4:0] LEDAC;
+	electrical [4:0] LEDAC;
+	output [3:0] S;
+	electrical [3:0] S;
+	output SOUT;
+	electrical SOUT;
+	input [3:0] ADDR;
+	electrical [3:0] ADDR;
+	input [5:0] DATA;
+	electrical [5:0] DATA;
+	input DGND;
+	electrical DGND;
+	input DVDD3;
+	electrical DVDD3;
+	input DVDD5;
+	electrical DVDD5;
+	input [3:0] MODE;
+	electrical [3:0] MODE;
+	input SIN;
+	electrical SIN;
+	input SI_CLK;
+	electrical SI_CLK;
+	input SO_CLK;
+	electrical SO_CLK;
+	input STB;
+	electrical STB;
+	input SVSS;
+	electrical SVSS;
+
+	parameter integer s = 0 from[0:pow(2,`SBITS)-1]; //digital code word for S bus
+	parameter integer le_dac = 0 from[0:pow(2, `LEBITS)-1]; //digital code word for LE DAC
+	parameter integer cv_dac = 0 from[0:pow(2, `CVBITS)-1]; //digital code word for CV DAC
+	parameter real tpd = 3n from(0:inf); //propogation delays
+	parameter real tr = 1n from(0:inf); //rise time
+	parameter real tf = 1n from(0:inf); //fall time
+	parameter real time_tol = 100p from[1p:inf); //time tolerance
+
+	/* Variable declarations
+	 * sbus: stores the binary word on the SBUS
+	 * cvbus: stores the binary word on the CV_DAC bus
+     * lebus: stores teh binary word on the LE_DAC bus
+	 * bit: used in initial step to determine bit values on each bus
+	 * i: looping index for above arrays.
+	 * j: genvar for using unrolled loops to set bus voltages
+	*/
+	real sbus[`SBITS-1:0];
+	real cvbus[`CVBITS-1:0];
+	real lebus[`LEBITS-1:0];
+	integer bit, i;
+	genvar j;
+
+	analog begin
+		/* At timestep 0
+		 * Determine the binary value given from the code word parameters
+		*/
+		@(initial_step) begin
+
+			bit = 1;
+			for(i = 0; i < `SBITS; i = i + 1) begin
+				sbus[i] = ((s & bit) > 0 ? V(DVDD5):V(DGND));
+				bit = bit << 1;
+			end 
+
+			bit = 1;
+			for(i = 0; i < `LEBITS; i = i + 1) begin
+				lebus[i] = ((le_dac & bit) > 0 ? V(DVDD5):V(DGND));
+				bit = bit << 1;
+			end 
+
+			bit = 1;
+			for(i = 0; i < `CVBITS; i = i + 1) begin
+				cvbus[i] = ((cv_dac & bit) > 0 ? V(DVDD5):V(DGND));
+				bit = bit << 1;
+			end 
+		end
+
+		/* Set the bus voltages */
+		for(j = 0; j < `SBITS; j = j + 1) begin
+			V(S[j]) <+ transition(sbus[j], tpd, tr, tf);
+		end 
+
+		for(j = 0; j < `LEBITS; j = j + 1) begin
+			V(LEDAC[j]) <+ transition(lebus[j], tpd, tr, tf);
+		end 
+
+		for(j = 0; j < `CVBITS; j = j + 1) begin
+			V(CVDAC[j]) <+ transition(cvbus[j], tpd, tr, tf);
+		end 
+	end
+endmodule

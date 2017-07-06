@@ -1,0 +1,261 @@
+// VerilogA for Lib, CFD_test, veriloga
+
+`include "constants.vams"
+`include "disciplines.vams"
+
+`define 	LEBITS 		6
+`define		CVBITS		2
+`define 	SBITS 		4
+`define		ADDRBITS	4
+`define		DATABITS	6
+`define		MODEBITS	4
+`define		CHANNELS	16
+
+module Channel_Tester(AGND, AVDD, AVSS, SVSS, DVDD3, ADDR, DATA,  MODE, SIG, STB, SI_CLK, SI, SO_CLK, IN);
+	output AGND, AVDD, AVSS, SVSS, SIG, STB, SI_CLK, SI, SO_CLK, DVDD3;
+	output[`ADDRBITS-1:0] ADDR;
+	output[`DATABITS-1:0] DATA;
+	output[`MODEBITS-1:0] MODE;
+	input[`CHANNELS-1:0] IN;
+	electrical AGND, AVDD, AVSS, SVSS, SIG, STB, SI_CLK, SI, SO_CLK, DVDD3;	
+	electrical[`ADDRBITS-1:0] ADDR;
+	electrical[`DATABITS-1:0] DATA;
+	electrical[`MODEBITS-1:0] MODE;
+	electrical[`CHANNELS-1:0] IN;	
+
+	parameter real tau_r = 3n from [3n:100n]; //rise time for pulse out
+	parameter real time_tol = 100p from[1p:1n]; //time tolerance for transitions and timers
+	parameter real Fp = 1k from [1:100M]; //frequency of pulses (in pules per sec)
+	parameter real Fstb = 25M from[1:100M]; //stb clk frequency.
+	parameter real avdd = 5; //positive rail voltage
+	parameter real agnd = 2.5; //analog ground reference voltage
+	parameter real avss = 0; //circuit ground
+	parameter real svss = 0; //substrate ground
+	parameter real dvdd3 = 3.3;
+	//parameter integer data = 0 from[0:pow(2,`DATABITS)-1]; //the digital word equivalent of the data bus
+	parameter real tr = 1n from [100p:10n]; //rise time
+	parameter real tf = 1n from [100p:10n]; //fall time
+	parameter real tpd = 1n from [100p:10n]; //propogation delay
+	parameter real si = 0 from[0:1];
+	parameter real Fshift = 25M from[1:100M];
+	parameter real timestep = 10n from[10p:inf);
+	parameter integer shift_en = 0 from[0:1];
+	parameter real deadzone = 10n;
+	parameter real vexp = 2 from[-2:2];
+	parameter integer v3test = 0 from[0:1];
+	parameter integer data0 = 0 from[0:pow(2, `DATABITS)-1];
+
+	real peak; //peak amplitude of exp pulse
+	real exp_pulse; //variable to hold current value of pulse
+	real t0; //time the last pulse started
+	real t; //current time (used for calculating value of pulse)
+	real pulse_period; //time period between pulses (1/Fp)
+	real stb_period; //time between stb clk cycles	
+	real voh, vol;
+	real vclk; //clk voltage
+	real vth; //threshold voltage
+	integer counter; //used to choose peak (0 = 20mV, 1 = 50mV, ... 6 = 2V)
+	integer bit; //used to determine control lines S and LE_DAC
+	real dbus[`DATABITS-1:0] ; //holds the data bus voltage values
+	real addr[`ADDRBITS-1:0]; //holds the addr line voltages
+	real mode[`MODEBITS-1:0]; //holds the mode lines voltages
+	integer data; //the digital word equivalent of the data bus
+	real vsi, vso; //shift clk voltages
+	real so_hi, so_lo, si_hi, si_lo; //shift clk transition times
+	real vsi0;
+	real shift_period;
+	real pulse_end;
+
+	integer modecount, addrcount, done, shift_done;
+	genvar j;
+	integer i;
+	real ts;
+
+	analog begin
+		/* Initially 
+		 * Open a file to record data in.
+		 * set the local variable values accordingly 
+		 * determines initial bus voltages.
+		*/
+		@(initial_step) begin
+			pulse_period = 1.0/Fp;
+			stb_period = 1.0/Fstb;
+			shift_period = 1.0/Fshift;
+			counter = 0;
+			peak = 0;
+			modecount = 0;
+			addrcount= 0;
+			done = 0;
+			vclk = avss;
+			data = data0;
+			ts = timestep;
+			si_hi = 99999;
+			si_lo = 99999;
+			so_hi = 99999;
+			so_lo = 99999;
+			pulse_end = 0;
+			shift_done = !shift_en;
+			voh = (v3test == 1) ? dvdd3:avdd;
+			vol = avss;
+		end
+
+		/* Timer
+		 * Changes the stb voltage every period
+		*/
+		@(timer(stb_period/128.0, stb_period/2.0, time_tol)) begin
+			if(!done) begin
+				vclk = (V(STB) > vth) ? vol:voh;
+			end
+			else begin 
+				vclk = avss;
+			end
+		end
+
+		/* Cross
+		 * On the falling edge of the STB changes MODE and ADDR
+		 * Sets up the configuration registers for each channel
+		 * Starts at ADDR<0> and MODE<0> and moves on until each channel
+		 * and mode has been used.
+		*/
+		@(cross(V(STB)-vth, -1,time_tol)) begin
+			if(!done) begin
+
+				bit = 1;
+				for (i = 0; i < `ADDRBITS ; i = i+1) begin
+					addr[i] = ((addrcount & bit) > 0) ? voh:vol; 
+					bit = bit << 1;
+				end
+			
+				bit = 1;
+				for (i = 0; i < `MODEBITS ; i = i+1) begin
+					mode[i] = ((modecount & bit) > 0) ? voh:vol; 
+					bit = bit << 1;
+				end
+
+				/* Loop
+				 * Determines which data bus lines to drive high
+				*/
+				bit = 1;
+				for (i = 0; i < `DATABITS ; i = i+1) begin
+					dbus[i] = ((data & bit) > 0) ? voh:vol; 
+					bit = bit << 1;
+				end
+
+				modecount = modecount + 1;
+				if(modecount > 4)begin
+					modecount = 0;
+					addrcount = addrcount + 1;
+					data = data + 1;
+				end
+
+				if(addrcount > (pow(2,`ADDRBITS)-1))begin
+					done = 1;
+					si_hi = $abstime + shift_period;
+				end
+			end
+		end
+
+		
+		if(!shift_done && done) begin
+			/* Timer
+			 * Changes the SI_CLK voltages every period
+			*/
+			@(timer(si_hi)) begin
+				vsi = voh;
+				si_lo = $abstime + shift_period - deadzone;
+			end
+
+			/* Timer
+			 * Changes the SO_CLK to high
+			*/
+			@(timer(si_lo)) begin
+				vsi = vol;
+				so_hi = $abstime + deadzone;
+			end
+
+			/* Timer
+			 * Changes the SO_CLK to high
+			*/
+			@(timer(so_hi)) begin
+				vso = voh;
+				so_lo = $abstime + shift_period - deadzone;
+			end
+
+			/* Timer
+			 * Changes the SO_CLK to high
+			*/
+			@(timer(so_lo)) begin
+				vso = vol;
+				si_hi = $abstime + deadzone;
+			end
+		end
+
+		/* Timer
+		 * Sets the peak voltage of the exp pulse
+		 * Sets the LE DAC input word value
+		 * Sets t0 for calculating the pulse value
+		 * writes the peak value and t0 to file
+		*/
+		@(timer(pulse_period*2, pulse_period, time_tol)) begin
+			t0 = $abstime;
+			peak = vexp;
+			ts = tau_r/20;
+			pulse_end = $abstime + 50*tau_r; //50 time constants before we raise timestep.
+			shift_done = 1;
+		end		
+
+		/* Timer
+		 * Resets the timestep 50 time constants after the start of a pulse.
+		 * Ensures enough data points are used for accurate pulse modeling
+		 * but prevents small timesteps once pulse has died out.
+		*/
+		@(timer(pulse_end)) begin
+			ts = timestep;
+		end
+
+		/* Assign constant voltages */
+		V(AVDD) <+ avdd;
+		V(AGND) <+ agnd;
+		V(AVSS) <+ avss;
+		V(SVSS) <+ svss;
+		V(DVDD3) <+ dvdd3;
+		vth = (avdd + avss)/2.0;
+
+		vsi0 = (si) ? voh:vol; //determine whether to make SI high or low
+		
+		/* Transition the shift signals */
+		V(SI) <+ transition(vsi0, tpd, tr, tf);
+		V(SI_CLK) <+ transition(vsi, tpd, tr, tf);
+		V(SO_CLK) <+ transition(vso, tpd, tr, tf);
+
+		/* Loop
+		 * Drives the appropriate data bus lines
+		*/
+		for(j = 0; j < `DATABITS; j = j + 1) begin
+			V(DATA[j]) <+ transition(dbus[j], tpd, tr, tf);
+		end
+		
+		/* Loop
+		 * Drives the appropriate address lines
+		*/
+		for(j = 0; j < `ADDRBITS; j = j + 1) begin
+			V(ADDR[j]) <+ transition(addr[j], tpd, tr, tf);
+		end
+
+		/* Loop
+		 * Drives the appropriate mode lines
+		*/
+		for(j = 0; j < `MODEBITS; j = j + 1) begin
+			V(MODE[j]) <+ transition(mode[j], tpd, tr, tf);
+		end
+
+		/* Calculate and produce the exponential pulse */
+		$bound_step(ts);
+		t = $abstime;
+		exp_pulse = exp(-(t-t0)/(10.0*tau_r)) - exp(-(t-t0)/tau_r);
+		V(SIG, AGND) <+ peak*exp_pulse*1.45;
+
+		/* Change the clock voltage accordingly */
+		V(STB) <+ transition(vclk, tpd, tr, tf);
+	end
+endmodule

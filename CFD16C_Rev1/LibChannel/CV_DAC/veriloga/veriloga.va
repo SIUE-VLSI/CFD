@@ -1,0 +1,52 @@
+// VerilogA for Lib, CV_DAC, veriloga
+
+`include "constants.vams"
+`include "disciplines.vams"
+
+`define BITS 2
+
+module CV_DAC(AOUT, AGND, AVDD, AVSS, D, VR, SVSS);
+	output AOUT;
+	electrical AOUT;
+	input AGND;
+	electrical AGND;
+	input AVDD;
+	electrical AVDD;
+	input AVSS;
+	electrical AVSS;
+	input [`BITS-1:0] D;
+	electrical [`BITS-1:0] D;
+	input SVSS;
+	electrical SVSS;
+	input VR;
+	electrical VR;
+
+	parameter real tpd = 0.0 from[0:inf); //the propogation delay to change the output
+	parameter real tr = 1n from[0:inf); //rise time of output
+	parameter real tf = 1n from[0:inf); //fall time of output
+	//parameter real Vref = 1.25; //reference voltage for DAC
+
+	/* Variable declarations
+	* dval - the digital code word on the D bus
+	* weight - the weight of the bit
+	* vth - the logic voltage threshold
+	* j - genvar used in unrolled loops
+	*/
+	real dval, weight, vth;
+	genvar j;
+
+	analog begin
+		dval = 0;
+		vth = (V(AVDD) + V(AVSS))/2.0; //compute the logic threshold
+		weight = 0.5;
+
+		//determine which bus lines are high and change code word accordingly
+		for(j = `BITS-1; j >= 0; j = j-1) begin
+			dval = dval + (V(D[j]) > vth ? weight:0.0);
+			weight = weight/2.0;
+		end
+
+		//Change analog voltage
+		V(AOUT) <+ transition(V(VR)*dval, tpd, tr, tf);
+	end
+endmodule

@@ -1,0 +1,83 @@
+// VerilogA for Lib, one_shot, veriloga
+
+`include "constants.vams"
+`include "disciplines.vams"
+
+module One_Shot(OUTP, INP, CV, AVDD, AVSS, AGND, SVSS, EN, EN_G);
+	input INP, CV, AVDD, AVSS, SVSS, AGND, EN, EN_G;
+	output OUTP;
+	electrical INP, CV, AVDD, AVSS, SVSS, OUTP, AGND, EN, EN_G;
+
+	parameter real tpd = 3n; //propogation delay
+	parameter real tr = 1n; //rise time
+	parameter real tf = 1n; //fall time
+	parameter real time_tol = 100p; //time tolerance
+	parameter real slope = 50n; //slope of CV/pulse width
+
+	/* Variable declarations
+	 * vout: temporary variable to hold the output voltage.
+	 * voh: the logic high voltage.
+	 * vol: the logic low voltage.
+	 * vth: the logic voltage threshold.
+	 * time_low: stores the next time the output should go low.
+	 * step: the pulse width of the output.
+	*/
+	real vout, voh, vol, vth, time_low, step;
+	integer en, en_g;
+
+	analog begin
+		/* Initial step (time = 0)
+		 * Compute the logicl levels and initial output voltage
+		 */
+		@(initial_step) begin
+			vout = 0;
+			time_low = 999;
+			en = 0;
+			en_g = 0;
+		end
+
+		voh = V(AVDD);
+		vol = V(AVSS);
+		vth = (vol + voh)/2.0;
+		/* Cross - input edge trigger
+		 * When an edge transitions on the input generate on output pulse
+		*/
+		@(cross(V(INP)-vth, 1, time_tol)) begin
+			step = V(CV)*slope;
+			step = (step > 100n) ? 100n:step;
+			step = (step < 10n) ? 10n:step;
+			time_low = $abstime + step;
+			vout  =  voh;
+		end
+
+		/* Reset output to low */
+		@(timer(time_low, time_tol)) begin
+			vout = vol;
+			time_low = 999;
+		end
+
+		@(cross(V(EN) - vth, 1, time_tol)) begin
+			en = 1;
+		end
+
+		@(cross(V(EN) - vth, -1, time_tol)) begin
+			en = 0;
+		end
+
+		@(cross(V(EN_G) - vth, 1, time_tol)) begin
+			en_g = 1;
+		end
+
+		@(cross(V(EN_G) - vth, -1, time_tol)) begin
+			en_g = 0;
+		end
+
+		if(!en || !en_g) begin
+			vout = V(AVSS);
+		end
+
+		//$bound_step(300p);
+		V(OUTP) <+ transition(vout, tpd, tr, tf);
+	end
+
+endmodule

@@ -1,0 +1,51 @@
+// VerilogA for poLib, OA22_va, veriloga
+
+`include "constants.vams"
+`include "disciplines.vams"
+
+
+module OA22_va(A, B, C, F, avdd, avss, svss);
+//input & output
+	input A, B, C, avdd, avss, svss;
+	output F;
+
+	electrical A, B, C, F, avdd, avss, svss;
+
+//parameter 
+	parameter tr = 10p;
+	parameter tf = 10p;
+	parameter tpd = 5n;
+	parameter time_tol = 100p;
+	real F_electric, voh, vol, vth;
+
+//electric & logic
+	integer A_logic, B_logic, C_logic, F_logic, or_logic;
+//Behavioral description
+	analog begin
+		voh = V(avdd);
+		vol = V(avss);
+		vth = (voh + vol) / 2.0;
+
+		@(initial_step or cross(V(A)-vth, 0, time_tol)) begin
+			A_logic = V(A) > vth ? 1 : 0;
+		end
+
+		@(initial_step or cross(V(B)-vth, 0, time_tol)) begin
+			B_logic = V(B) > vth ? 1 : 0;
+		end
+
+		@(initial_step or cross(V(C)-vth, 0, time_tol)) begin
+			C_logic = V(C) > vth ? 1 : 0;
+		end
+
+		or_logic = A_logic || B_logic;  //logic function
+		F_logic = or_logic && C_logic;
+
+		if(F_logic == 1) F_electric = voh;
+		else if(F_logic == 0) F_electric = vol;
+
+//Assign appropriate voltage to output node
+		V(F) <+ transition(F_electric, tpd, tr, tf);
+	end
+endmodule
+

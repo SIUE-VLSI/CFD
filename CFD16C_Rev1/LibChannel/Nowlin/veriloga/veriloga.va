@@ -1,0 +1,63 @@
+// VerilogA for Lib, nowlin_va, veriloga
+
+`include "constants.vams"
+`include "disciplines.vams"
+
+module Nowlin(LE, ZCM, ZCP, AGND, AVDD, AVSS, S, SVSS, SIG);
+	output LE;
+	electrical LE;
+	output ZCM;
+	electrical ZCM;
+	output ZCP;
+	electrical ZCP;
+	input AGND;
+	electrical AGND;
+	input AVDD;
+	electrical AVDD;
+	input AVSS;
+	electrical AVSS;
+	input [3:0] S;
+	electrical [3:0] S;
+	input SVSS;
+	electrical SVSS;
+	input SIG;
+	electrical SIG;
+
+	parameter real C0 = 50p; //input HPF cap
+	parameter real R1 = 10k; //resistor divider R1
+	parameter real R2 = 20k; //resistor divider R2
+	parameter real R3 = 3k; //LE output resistor
+	parameter real time_tol = 100p; //time tolerance
+	
+	real C1;
+	real voh, vol, vth, weight, dval;
+
+	genvar j;
+
+	analog begin
+		/* compute logic voltages */
+		voh = V(AVDD);
+		vol = V(AVSS);
+		vth = (voh + vol)/2.0;
+
+		//weight of the bit being evaluated
+		weight = 1.0;
+		//decimal value on the S-bus
+		dval = 0;
+
+		//determine the S-bus value to determine output capacitance
+		for(j = 0; j < 4; j = j + 1) begin
+			dval = dval + (V(S[j]) > vth ? weight:0);
+			weight = weight*2;
+		end		
+		
+		C1 = (dval + 1)*0.5p; //change output capacitance.
+
+		/* compute the nodal values for the Nowlin circuit */
+		I(SIG, LE) <+ C0*ddt(V(SIG, LE));
+		V(LE, ZCM) <+ I(LE, ZCM)*R1;
+		V(ZCM, AGND) <+ I(ZCM, AGND)*R2;
+		V(LE, ZCP) <+ I(LE, ZCP)*R3;
+		I(ZCP, AGND) <+ C1*ddt(V(ZCP, AGND));
+	end
+endmodule

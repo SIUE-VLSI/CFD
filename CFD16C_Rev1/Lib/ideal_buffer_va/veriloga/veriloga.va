@@ -1,0 +1,15 @@
+// VerilogA for Lib, ideal_buffer_va, veriloga
+
+`include "constants.vams"
+`include "disciplines.vams"
+
+module ideal_buffer_va(in, out, avdd, avss, agnd, svss);
+	input in, avdd, avss, agnd, svss;
+	output out;
+	electrical in, out, avdd, avss, agnd, svss;
+
+	analog begin
+		V(out) <+ V(in);
+	end
+
+endmodule

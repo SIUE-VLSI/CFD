@@ -1,0 +1,23 @@
+ncvlog: 09.20-s038: (c) Copyright 1995-2011 Cadence Design Systems, Inc.
+TOOL:	ncvlog	09.20-s038: Started on Jun 06, 2017 at 13:46:36 CDT
+ncvlog
+    -cdslib /home/CFD/cds/CFDtest/cds.lib
+    -hdlvar /home/CFD/cds/CFDtest/hdl.var
+    -logfile ./ncvlog.log
+    -errormax 15
+    -update
+    -linedebug
+    -status
+    -sv
+    verilog_driver.sv
+    -messages
+
+file: verilog_driver.sv
+`include "verilog_driver_tasks.sv"
+                                 |
+ncvlog: *E,COFILX (verilog_driver.sv,45|33): cannot open include file 'verilog_driver_tasks.sv'.
+	module worklib.verilog_driver
+		errors: 1, warnings: 0
+ncvlog: Memory Usage - 11.3M program + 10.9M data = 22.2M total
+ncvlog: CPU Usage - 0.0s system + 0.0s user = 0.0s total (0.3s, 3.1% cpu)
+TOOL:	ncvlog	09.20-s038: Exiting on Jun 06, 2017 at 13:46:36 CDT  (total: 00:00:00)

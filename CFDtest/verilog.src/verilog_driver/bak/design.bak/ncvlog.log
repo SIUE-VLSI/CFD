@@ -1,0 +1,17 @@
+ncvlog: 09.20-s038: (c) Copyright 1995-2011 Cadence Design Systems, Inc.
+TOOL:	ncvlog	09.20-s038: Started on Aug 29, 2014 at 16:24:30 CDT
+ncvlog
+    -cdslib /home/HINP/cds/HINPtest/cds.lib
+    -hdlvar /home/HINP/cds/HINPtest/hdl.var
+    -logfile ./ncvlog.log
+    -errormax 15
+    -update
+    -linedebug
+    -status
+    verilog_driver.v
+    -messages
+
+file: verilog_driver.v
+ncvlog: Memory Usage - 11.3M program + 10.4M data = 21.7M total
+ncvlog: CPU Usage - 0.0s system + 0.0s user = 0.0s total (0.0s, 49.1% cpu)
+TOOL:	ncvlog	09.20-s038: Exiting on Aug 29, 2014 at 16:24:30 CDT  (total: 00:00:00)

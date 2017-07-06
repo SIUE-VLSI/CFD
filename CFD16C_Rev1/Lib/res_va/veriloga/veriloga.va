@@ -1,0 +1,15 @@
+// VerilogA for Lib, res_va, veriloga
+
+`include "constants.vams"
+`include "disciplines.vams"
+
+module res_va(A, B);
+	inout A, B;
+	electrical A, B;
+
+	parameter real R = 10k;
+	
+	analog begin
+		V(A, B) <+ I(A,B)*R;
+	end
+endmodule

@@ -1,0 +1,25 @@
+// VerilogA for LibChannel, Delay, veriloga
+
+`include "constants.vams"
+`include "disciplines.vams"
+
+module Delay(OUT, AVDD, AVSS, IN, SVSS);
+	output OUT;
+	electrical OUT;
+	input AVDD;
+	electrical AVDD;
+	input AVSS;
+	electrical AVSS;
+	input IN;
+	electrical IN;
+	input SVSS;
+	electrical SVSS;
+
+	parameter real tpd = 100n; //delay
+
+	analog begin
+		
+		V(OUT) <+ absdelay(V(IN), tpd); //delay the input!
+	end
+
+endmodule

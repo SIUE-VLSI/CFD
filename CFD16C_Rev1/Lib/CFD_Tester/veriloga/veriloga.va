@@ -1,0 +1,106 @@
+// VerilogA for Lib, CFD_test, veriloga
+
+`include "constants.vams"
+`include "disciplines.vams"
+
+`define 	LEBITS 		6
+`define		CVBITS		2
+`define		ADDRBITS	4
+`define		DATABITS	6
+`define		MODEBITS	4
+`define		CHANNELS	16
+
+module Channel_Tester(PEAK, TRIG, ADDR, DATA,  MODE, SIG, STB, SI_CLK, SI, SO_CLK, AVDD, AGND, AVSS, SVSS, DVDD3);
+	output STB, SI_CLK, SI, SO_CLK, AVDD, AGND, AVSS, SVSS, DVDD3;
+	output[`ADDRBITS-1:0] ADDR;
+	output[`DATABITS-1:0] DATA;
+	output[`MODEBITS-1:0] MODE;
+	input[`CHANNELS-1:0] TRIG, PEAK;
+	output[`CHANNELS-1:0] SIG;
+	electrical STB, SI_CLK, SI, SO_CLK, AVDD, AGND, AVSS, SVSS, DVDD3;	
+	electrical[`ADDRBITS-1:0] ADDR;
+	electrical[`DATABITS-1:0] DATA;
+	electrical[`MODEBITS-1:0] MODE;
+	electrical[`CHANNELS-1:0] TRIG, PEAK;
+	electrical[`CHANNELS-1:0] SIG;
+	electrical gnd;
+	ground gnd;
+
+	parameter real tau_r = 3n from [3n:100n]; //rise time for pulse out
+	parameter real time_tol = 100p from[1p:1n]; //time tolerance for transitions and timers
+
+	real vpeak[`CHANNELS-1:0]; //peak amplitude of exp pulse
+	real exp_pulse[`CHANNELS-1:0]; //variable to hold current value of pulse
+	real t0[`CHANNELS-1:0]; //time the last pulse started
+	real t; //current time (used for calculating value of pulse)
+	
+
+	genvar j;
+	real time_fall, time_rise;
+	real vth;
+	integer time_flag;
+
+	/*	Supply voltage lines */
+	vsource #(.type("pwl"), .file("~/cds/CFDtest/vcd/AVDD.pwl")) V_avdd(AVDD, gnd);
+	vsource #(.type("pwl"), .file("~/cds/CFDtest/vcd/AGND.pwl")) V_agnd(AGND, gnd);
+	vsource #(.type("pwl"), .file("~/cds/CFDtest/vcd/AVSS.pwl")) V_avss(AVSS, gnd);
+	vsource #(.type("pwl"), .file("~/cds/CFDtest/vcd/SVSS.pwl")) V_svss(SVSS, gnd);
+	vsource #(.type("pwl"), .file("~/cds/CFDtest/vcd/DVDD3.pwl")) V_dvdd3(DVDD3, gnd);
+
+	/*	Address lines	*/
+	vsource #(.type("pwl"), .file("~/cds/CFDtest/vcd/ADDR0.pwl")) V_addr0(ADDR[0], gnd);
+	vsource #(.type("pwl"), .file("~/cds/CFDtest/vcd/ADDR1.pwl")) V_addr1(ADDR[1], gnd);
+	vsource #(.type("pwl"), .file("~/cds/CFDtest/vcd/ADDR2.pwl")) V_addr2(ADDR[2], gnd);
+	vsource #(.type("pwl"), .file("~/cds/CFDtest/vcd/ADDR3.pwl")) V_addr3(ADDR[3], gnd);
+
+	/*	Data lines	*/
+	vsource #(.type("pwl"), .file("~/cds/CFDtest/vcd/DATA0.pwl")) V_data0(DATA[0], gnd);
+	vsource #(.type("pwl"), .file("~/cds/CFDtest/vcd/DATA1.pwl")) V_data1(DATA[1], gnd);
+	vsource #(.type("pwl"), .file("~/cds/CFDtest/vcd/DATA2.pwl")) V_data2(DATA[2], gnd);
+	vsource #(.type("pwl"), .file("~/cds/CFDtest/vcd/DATA3.pwl")) V_data3(DATA[3], gnd);
+	vsource #(.type("pwl"), .file("~/cds/CFDtest/vcd/DATA4.pwl")) V_data4(DATA[4], gnd);
+	vsource #(.type("pwl"), .file("~/cds/CFDtest/vcd/DATA5.pwl")) V_data5(DATA[5], gnd);
+
+	/*	Mode lines	*/
+	vsource #(.type("pwl"), .file("~/cds/CFDtest/vcd/MODE0.pwl")) V_mode0(MODE[0], gnd);
+	vsource #(.type("pwl"), .file("~/cds/CFDtest/vcd/MODE1.pwl")) V_mode1(MODE[1], gnd);
+	vsource #(.type("pwl"), .file("~/cds/CFDtest/vcd/MODE2.pwl")) V_mode2(MODE[2], gnd);
+	vsource #(.type("pwl"), .file("~/cds/CFDtest/vcd/MODE3.pwl")) V_mode3(MODE[3], gnd);
+
+	/*	Clock/Shift lines	*/
+	vsource #(.type("pwl"), .file("~/cds/CFDtest/vcd/STB.pwl")) V_stb(STB, gnd);
+	vsource #(.type("pwl"), .file("~/cds/CFDtest/vcd/SI.pwl")) V_si(SI, gnd);
+	vsource #(.type("pwl"), .file("~/cds/CFDtest/vcd/SO_CLK.pwl")) V_so_clk(SO_CLK, gnd);
+	vsource #(.type("pwl"), .file("~/cds/CFDtest/vcd/SI_CLK.pwl")) V_si_clk(SI_CLK, gnd);
+
+
+	analog begin
+		@(initial_step) begin
+			time_flag = 0;
+		end
+	
+		vth = (V(AVDD) + V(AVSS))/2.0;
+		t = $abstime;
+		for(j = 0; j < `CHANNELS; j = j + 1) begin
+			@(cross(V(TRIG[j]) - vth, 1, time_tol)) begin
+				vpeak[j] = V(PEAK[j]);
+				t0[j] = $abstime;
+				time_flag = 1;
+				time_fall = $abstime + 5*tau_r;
+			end
+
+			exp_pulse[j] = exp(-(t-t0[j])/(10.0*tau_r)) - exp(-(t-t0[j])/tau_r);
+			V(SIG[j], AGND) <+ vpeak[j]*exp_pulse*1.45;
+		end
+
+		/*	After five time constants, clear the time flag	*/
+		@(timer(time_fall)) begin
+			time_flag = 0;
+		end
+
+		/*	While time flag is set, steps will be smaller to accurately model pulse	*/
+		if(time_flag) begin
+			$bound_step(tau_r/20.0);
+		end
+	end
+endmodule

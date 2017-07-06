@@ -1,0 +1,22 @@
+// VerilogA for Lib, lvltrans_PadVdd5_PSD, veriloga
+
+`include "constants.vams"
+`include "disciplines.vams"
+
+/* The Aref pad is composed of an NFET connected as a diode.
+*  The NFET drain, gate, and bulk are connected to GND1. It's source is connected to VDD1.
+*/
+module lvltrans_PadVdd5_PSD(GND1, VDD1);
+	input GND1;
+	electrical GND1;
+	input VDD1;
+	electrical VDD1;
+
+	//The leakage current of the diode.
+	parameter real Is = 1p from[1p:1n];
+    parameter real Rs = 200 from[1:inf);
+
+	analog begin
+		I(GND1, VDD1) <+ Is*(limexp((V(GND1, VDD1) - Rs*I(GND1, VDD1))/$vt) - 1.0);
+	end
+endmodule

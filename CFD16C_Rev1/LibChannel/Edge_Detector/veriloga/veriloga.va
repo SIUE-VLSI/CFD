@@ -1,0 +1,43 @@
+// VerilogA for LibChannel, Edge_Detector, veriloga
+
+`include "constants.vams"
+`include "disciplines.vams"
+
+module Edge_Detector(IN, AVDD, AVSS, SVSS, OUT);
+	input IN, AVDD, AVSS, SVSS;
+	output OUT;
+	electrical IN, AVDD, AVSS, SVSS, OUT;
+
+	parameter real tr = 1n from(0:inf); //rise time
+	parameter real tf = 1n from(0:inf); //fall time
+	parameter real tpd = 3n from(0:inf); //propogation delay
+	parameter real time_tol = 100p from[10p:inf); //time tolerance
+	parameter real pw = 1n from[100p:inf); //output pulse width
+	
+	real vout, voh, vol, vth, timeoff;
+
+	analog begin
+		@(initial_step) begin
+			vout = 0;
+		end
+
+		/* compute logic voltages */
+		voh = V(AVDD);
+		vol = V(AVSS);
+		vth = (voh + vol)/2.0;
+
+		/* output a pulse on a rising edge */
+		@(cross(V(IN) - vth, 1, time_tol)) begin
+			vout = voh;
+			timeoff = $abstime + pw; //time to make output low
+		end
+
+		/* change output to a low voltage */
+		@(timer(timeoff)) begin
+			vout = vol;
+		end
+
+		/* change output voltage */
+		V(OUT) <+ transition(vout, tpd, tr, tf);
+	end
+endmodule

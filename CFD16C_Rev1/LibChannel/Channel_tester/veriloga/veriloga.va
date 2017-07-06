@@ -1,0 +1,214 @@
+// VerilogA for LibChannel, Channel_tester, veriloga
+
+`include "constants.vams"
+`include "disciplines.vams"
+
+`define 	LEBITS 		6
+`define		CVBITS		2
+`define 	SBITS 		4
+`define		ADDRBITS	4
+`define		DATABITS	6
+`define		MODEBITS	4
+
+module Channel_tester(ADDR, ADDR_HC, DATA, MODE, PULSE, SI, SI_CLK, SO_CLK, STB, AVDD, AGND, AVSS, SVSS, IN);
+	input IN;
+	output[`ADDRBITS-1:0] ADDR, ADDR_HC;
+	output[`DATABITS-1:0] DATA;
+	output[`MODEBITS-1:0] MODE;
+	output PULSE, SI, SI_CLK, SO_CLK, STB, AVDD, AGND, AVSS, SVSS;
+
+	electrical IN;
+	electrical[`ADDRBITS-1:0] ADDR, ADDR_HC;
+	electrical[`DATABITS-1:0] DATA;
+	electrical[`MODEBITS-1:0] MODE;
+	electrical PULSE, SI, SI_CLK, SO_CLK, STB, AVDD, AGND, AVSS, SVSS;
+
+
+	parameter real time_tol = 100p;
+	parameter real tpd = 3n;
+	parameter real tr = 1n;
+	parameter real tf = 1n;
+	parameter real timestep = 1n;
+	parameter integer address = 0 from[0:pow(2,`ADDRBITS)-1];
+	parameter integer address_hc = 0 from[0:pow(2,`ADDRBITS)-1];
+	parameter integer data = 0 from[0:pow(2,`DATABITS)-1];
+	parameter integer mode = 0 from[0:pow(2,`MODEBITS)-1];
+	parameter integer shift_en = 0 from[0:1];
+	parameter integer shift0 = 0 from[0:1];
+	parameter real fstb = 20M;
+	parameter real fshift = 20M;
+	parameter real deadzone = 10n;
+	parameter real tau_r = 3n from [3n:100n]; //rise time for pulse out
+	parameter real vpulse = 2 from[-20m:2];
+	parameter real avdd = 5;
+	parameter real agnd = 2.5;
+	parameter real avss = 0;
+	parameter real svss = 0;
+	
+
+	real dbus[`DATABITS-1:0] ; //holds the data bus voltage values
+	real addr[`ADDRBITS-1:0]; //holds the addr line voltages
+	real addr_hc[`ADDRBITS-1:0]; //holds the addr_hc line voltages
+	real modeb[`MODEBITS-1:0]; //holds the mode lines voltages
+	real peak;
+	real exp_pulse; //variable to hold current value of pulse
+	real t0; //time the last pulse started
+	real t; //current time (used for calculating value of pulse)
+	real stb_period; //time between stb clk cycles	
+	real shift_period; //time between shift clk cycles
+	real vclk; //clk voltage
+	real vth; //threshold voltage
+	real vsi, vso; //shift clk voltages
+	real vsi0;
+	real so_hi, so_lo, si_hi, si_lo; //shift clk transition times
+	real tpulse; //time to start the pulse
+	real tconf;
+	integer done; //config done
+	integer counter; //cycle counter
+	integer bit; //used in bus loops
+	integer i;
+
+	genvar j;
+
+	analog begin
+		@(initial_step) begin
+			//t0 = $abstime;
+			stb_period = 1/fstb;
+			shift_period = 1/fshift;
+			done = 0;
+			vclk = 0;
+			vsi = 0;
+			vso = 0;
+			counter = 0;
+			si_hi = shift_period;
+			peak = 0;
+			tpulse = 9999999;
+			si_lo = 9999999;
+			so_hi = 999999;
+			so_lo = 999999;
+
+			bit = 1;
+			for (i = 0; i < `ADDRBITS; i = i + 1) begin
+				addr[i] = ((address & bit) > 0) ? avdd:avss; 
+				addr_hc[i] = ((address_hc & bit) > 0) ? avdd:avss;
+				bit = bit << 1;
+			end
+	
+			bit = 1;
+			for (i = 0; i <  `MODEBITS; i = i + 1) begin
+				modeb[i] = ((mode & bit) > 0) ? avdd:avss; 
+				bit = bit << 1;
+			end
+
+			/* Loop
+			 * Determines which data bus lines to drive high
+			*/
+			bit = 1;
+			for (i = 0; i <  `DATABITS; i = i + 1) begin
+				dbus[i] = ((data & bit) > 0) ? avdd:0;
+				bit = bit << 1; 
+			end
+		end
+		
+		vth = (avdd + avss)/2.0;
+
+		/* Assign constant voltages */
+		V(AVDD) <+ avdd;
+		V(AGND) <+ agnd;
+		V(AVSS) <+ avss;
+		V(SVSS) <+ svss;
+
+		/* Timer
+		 * Changes the stb voltage every period
+		*/
+		@(timer(stb_period/8, stb_period/2.0, time_tol)) begin
+			if(!done) begin
+				vclk = (V(STB) > vth) ? avss:avdd;
+				counter = counter + 1;
+				done = (counter >= 2) ? 1:0;
+				if(done == 1) begin
+					tpulse = $abstime + 100n;
+				end
+			end
+			else begin 
+				vclk = avss;
+			end
+		end
+
+		if(shift_en) begin
+			/* Timer
+			 * Changes the SI_CLK voltages every period
+			*/
+			@(timer(si_hi)) begin
+				vsi = avdd;
+				si_lo = $abstime + shift_period - deadzone;
+			end
+
+			/* Timer
+			 * Changes the SO_CLK to high
+			*/
+			@(timer(si_lo)) begin
+				vsi = avss;
+				so_hi = $abstime + deadzone;
+			end
+
+			/* Timer
+			 * Changes the SO_CLK to high
+			*/
+			@(timer(so_hi)) begin
+				vso = avdd;
+				so_lo = $abstime + shift_period - deadzone;
+			end
+
+			/* Timer
+			 * Changes the SO_CLK to high
+			*/
+			@(timer(so_lo)) begin
+				vso = avss;
+				si_hi = $abstime + deadzone;
+			end
+		end
+
+		/* Timer
+		 * Starts generating output pulse
+		*/
+		@(timer(tpulse)) begin
+			peak = vpulse;
+			t0 = $abstime;
+		end
+
+		/* Loop
+		 * Drives the appropriate data bus lines
+		*/
+		for(j = 0; j < `DATABITS; j = j + 1) begin
+			V(DATA[j]) <+ transition(dbus[j], tpd, tr, tf);
+		end
+		
+		/* Loop
+		 * Drives the appropriate address lines
+		*/
+		for(j = 0; j < `ADDRBITS; j = j + 1) begin
+			V(ADDR[j]) <+ transition(addr[j], tpd, tr, tf);
+			V(ADDR_HC[j]) <+ transition(addr_hc[j], tpd, tr, tf);
+		end
+
+		/* Loop
+		 * Drives the appropriate mode lines
+		*/
+		for(j = 0; j < `MODEBITS; j = j + 1) begin
+			V(MODE[j]) <+ transition(modeb[j], tpd, tr, tf);
+		end
+
+		$bound_step(timestep);
+		t = $abstime;
+		exp_pulse = exp(-(t-t0)/(10.0*tau_r)) - exp(-(t-t0)/tau_r);
+		V(PULSE, AGND) <+ peak*exp_pulse*1.45;
+
+		vsi0 = (shift0) ? avdd:avss;
+		
+		V(SI) <+ transition(vsi0, tpd, tr, tf);
+		V(STB) <+ transition(vclk, tpd, tr, tf);
+		V(SI_CLK) <+ transition(vsi, tpd, tr, tf);
+		V(SO_CLK) <+ transition(vso, tpd, tr, tf);
+	end
+endmodule

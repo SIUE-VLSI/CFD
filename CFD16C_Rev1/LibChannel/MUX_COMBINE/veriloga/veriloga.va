@@ -1,0 +1,21 @@
+// VerilogA for LibChannel, MUX_COMBINE, veriloga
+
+`include "constants.vams"
+`include "disciplines.vams"
+
+`define NUMIN	8
+
+module MUX_COMBINE(IN, OUT);
+	input[`NUMIN-1:0] IN;
+	output[`NUMIN-1:0] OUT;
+	electrical[`NUMIN-1:0] IN, OUT;
+
+	genvar j;	
+
+	analog begin
+		for(j = 0; j < `NUMIN; j = j + 1) begin
+			V(OUT[j]) <+ V(IN[j]);
+		end
+	end
+
+endmodule

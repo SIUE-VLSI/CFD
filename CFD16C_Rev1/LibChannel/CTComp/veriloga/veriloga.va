@@ -1,0 +1,52 @@
+// VerilogA for Lib, CTComp, veriloga
+
+`include "constants.vams"
+`include "disciplines.vams"
+
+`define PI 3.14159
+
+module CTComp(outp, inp, inm, avdd, avss, svss);
+	input inp, inm;
+	input avdd, avss, svss;
+	output outp;
+	
+	electrical inp, inm, outp;
+	electrical avdd, avss, svss;
+
+	parameter real A0 = 10e4; //low-frequency gain
+	parameter real GBW = 625G; //gain bandwidth product
+	parameter real SR = 150M;
+	parameter real tr = 1n;
+	parameter real tf = 1n;
+	parameter real tpd = 3n;
+
+	real vid, vo, vout;
+	real omega_u, omega_d;
+	real K;
+	real num[1:0];
+	real den[1:0];
+
+	analog begin
+		@(initial_step) begin
+			omega_u = 2.0*`PI*GBW; //compute unity gain freq.
+			omega_d = omega_u/A0; //compute dominant frequency
+			num[0] = omega_u;
+			num[1] = 0;
+			den[0] = omega_d;
+			den[1] = 1.0;
+		end
+				
+		//$bound_step(100p);
+		vid = V(inp,inm); //differential input voltagea
+		vo = laplace_nd(vid, num, den); //models finite GBW of comparator
+		K = (V(avdd) - V(avss))/2.0;
+		vo = vo/K;
+
+		//tanh useful for implementing railing that comparators do.
+		//Avoids discontinuity
+		vout = K*(1.0 + tanh(vo)) + V(avss);
+		vout = (vout > K) ? V(avdd):V(avss);
+		V(outp) <+ slew(vout, SR);
+		//V(outp) <+ transition(vout, tpd, tr, tf);
+	end
+endmodule

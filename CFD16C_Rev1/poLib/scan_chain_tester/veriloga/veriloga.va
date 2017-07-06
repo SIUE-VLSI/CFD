@@ -1,0 +1,9 @@
+// VerilogA for poLib, scan_chain_tester, veriloga
+
+`include "constants.vams"
+`include "disciplines.vams"
+
+module scan_chain_tester(clk, si_clk, so_clk, avdd, avss svss);
+
+
+endmodule

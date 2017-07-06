@@ -1,0 +1,16 @@
+// VerilogA for Lib, Bandgap, veriloga
+
+`include "constants.vams"
+`include "disciplines.vams"
+
+module Bandgap(AVDD, AGND, AVSS, SVSS, OUT);
+	input AVDD, AGND, AVSS, SVSS;
+	output OUT;
+	electrical AVDD, AGND, AVSS, SVSS, OUT;
+
+	parameter real vout = 1.25;
+
+	analog begin
+		V(OUT) <+ vout;
+	end
+endmodule

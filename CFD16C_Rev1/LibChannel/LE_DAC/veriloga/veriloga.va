@@ -1,0 +1,53 @@
+// VerilogA for Lib, LE_DAC, veriloga
+
+`include "constants.vams"
+`include "disciplines.vams"
+
+`define BITS 6
+`define SIGN 5
+
+module LE_DAC(AOUT, AGND, AVDD, AVSS, D, VR, SVSS);
+	output AOUT;
+	electrical AOUT;
+	input AGND;
+	electrical AGND;
+	input AVDD;
+	electrical AVDD;
+	input AVSS;
+	electrical AVSS;
+	input [`BITS-1:0] D;
+	electrical [`BITS-1:0] D;
+	input SVSS;
+	electrical SVSS;
+	input VR;
+	electrical VR;
+
+	parameter real tpd = 0.0 from[0:inf); //propgation delay
+	parameter real tr = 1n from[0:inf); //output rise time
+	parameter real tf = 1n from[0:inf); //output fall time
+	//parameter real Vref = 1.25; //DAC voltage reference
+
+	/* Variable declarations
+	* dval - the digital code word
+	* weight - the weight of the bit
+	* vth - the logic voltage threshold
+	* j - genvar used in unrolled loops
+	*/
+	real dval, weight, vth;
+	genvar j;
+
+	analog begin
+		dval = 0;
+		vth = (V(AVDD) + V(AVSS))/2.0; //compute logic threshold
+		weight = (V(D[`SIGN]) > vth) ? -0.5:0.5; //determine if negative sign
+
+		//compute the digital code word
+		for(j = `BITS-2; j >= 0; j = j-1) begin
+			dval = dval + (V(D[j]) > vth ? weight:0.0);
+			weight = weight/2.0;
+		end
+
+		//Change analog ouput voltage
+		V(AOUT, AGND) <+ transition(V(VR)*dval, tpd, tr, tf);
+	end
+endmodule

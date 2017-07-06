@@ -1,0 +1,31 @@
+// VerilogA for Lib, PadAref, veriloga
+
+`include "constants.vams"
+`include "disciplines.vams"
+
+/* The Aref pad is composed of a PFET and an NFET connected as diodes.
+*  The PFET source, gate, and bulk are connected to VDD1. It's drain is connected to SIGNAL.
+*  The NFET drain, gate, and bulk are connected to GND1. It's source is connected to SIGNAL.
+*/
+module PadAref(SIGNAL, GND1, VDD1);
+	output SIGNAL;
+	electrical SIGNAL;
+	input GND1;
+	electrical GND1;
+	input VDD1;
+	electrical VDD1;
+	electrical center;
+
+	//Leakage current Is, parasitic capacitance, and series resistance for the two diodes.
+	parameter real Isn = 100n from[1n:1u];
+	parameter real Isp = 100n from[1n:1u];	
+	parameter real Cp = 1p from[1p:500p];
+	parameter real Rs = 100 from[1:1k];
+
+	analog begin
+		I(VDD1, center) <+ Isp*(limexp(V(VDD1, center)/$vt) - 1.0);
+		I(center, GND1) <+ Isn*(limexp(V(center, GND1)/$vt) - 1.0);
+		V(SIGNAL, center) <+ Rs*I(SIGNAL, center);
+		I(center) <+ Cp*ddt(V(center));
+	end
+endmodule

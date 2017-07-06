@@ -1,0 +1,52 @@
+// VerilogA for Lib, diff_amp, veriloga
+
+`include "constants.vams"
+`include "disciplines.vams"
+
+`define Pi 3.14159
+
+module DiffAmp(outp, outm, inp, inm, avdd, avss, svss);
+	output outp, outm;
+	input inp, inm, avdd, avss, svss;
+	electrical outp, outm, inp, inm, avdd, avss, svss;
+
+	parameter real GBW = 625M; //Gain Bandwidth product
+	parameter real A0 = 50; //Low frequency gain
+	parameter real Vcm = 2.5; //Input common mode voltage
+	parameter real SR = 150M; //Slew rate
+	
+	/* Variable declarations
+	 * vid: temporary variable to hold Vcm value
+	 * vout: output voltage
+	 * wu: unity gain frequency
+	 * wd: dominant frequency
+	 * num: array for numerator of laplace function
+	 * den: array for denominator of laplace function
+	*/
+	real vid, vout;
+	real wu, wd;
+	real num[1:0];
+	real den[1:0];
+	
+	analog begin
+		/* Initial step
+		 * Compute frequencies and fill laplace arrays
+		*/
+		@(initial_step) begin
+			wu = 2*`Pi*GBW;
+			wd = wu/A0;
+			num[0] = wu;
+			num[1] = 0;
+			den[0] = wd;
+			den[1] = 1.0;
+		end
+		/* Compute common mode and use laplace to compute output */
+		vid = V(inp) - V(inm);
+		vout = laplace_nd(vid, num, den);
+		if(vout > V(avdd)) vout = V(avdd);
+		else if(vout < V(avss)) vout = V(avss);
+		/* Slew outuputs */
+		V(outp) <+ slew(Vcm + vout/2, SR);
+		V(outm) <+ slew(Vcm - vout/2, SR);
+	end	
+endmodule

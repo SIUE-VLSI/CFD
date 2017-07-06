@@ -1,0 +1,64 @@
+// VerilogA for Lib, lvltrans_PadInc_PSD, veriloga
+
+`include "constants.vams"
+`include "disciplines.vams"
+
+/* The Digital Input pad is composed of a PFET and an NFET connected as diodes, and two inverters.
+*  The PFET source, gate, and bulk are connected to VDD1. It's drain is connected to SIGNAL.
+*  The NFET drain, gate, and bulk are connected to GND1. It's source is connected to SIGNAL.
+*  The two invertes are connected to form an logic high input and logic low input (DataIn, DataInB).
+*/
+module lvltrans_PadInc_PSD(DataIn, DataInB, GND1, GND2, VDD1, VDD2, VDD_5, Pad);
+	output DataIn;
+	electrical DataIn;
+	output DataInB;
+	electrical DataInB;
+	inout GND1;
+	electrical GND1;
+	inout GND2;
+	electrical GND2;
+	inout VDD1;
+	electrical VDD1;
+	inout VDD2;
+	electrical VDD2;
+	inout VDD_5;
+	electrical VDD_5;
+	input Pad;
+	electrical Pad;
+
+	//The propogation delay, rise/fall times, and cross function tolerance for the inverters.
+	parameter real tpd = 4n;
+	parameter real tr = 20n;
+	parameter real tf = 20n;
+	parameter real time_tol = 100p;
+
+	//Leakage current Is, parasitic capacitance, and series resistance for the two diodes.
+	parameter real Isn = 1p from[1p:1n];
+	parameter real Isp = 1p from[1p:1n];	
+	parameter real Cp = 1p from[1p:500p];
+	parameter real Rs = 200 from[1:1k];
+
+	//logic levels for the inverters
+	real voh, vol, vth, din, dinb;	
+
+	analog begin
+		voh = V(VDD_5);
+		vol = V(GND1);
+		vth = (V(VDD1) + vol) / 2.0;
+
+		I(Pad, VDD1) <+ Isp*((limexp(V(Pad, VDD1) -Rs*I(Pad, VDD1))/$vt) - 1.0);
+		I(GND1, Pad) <+ Isn*(limexp((V(GND1, Pad) - Rs*I(GND1, Pad))/$vt) - 1.0);
+		I(Pad) <+ Cp*ddt(V(Pad));
+		
+		/*@(cross(V(Pad)-vth, 0, time_tol)) begin
+			dinb = (V(Pad) > vth)  ? vol : voh;
+			din =  (V(Pad) <= vth) ? vol : voh; 
+		end*/
+
+		dinb = voh - (voh/3.3)*V(Pad);
+		din = (voh/3.3)*V(Pad);
+
+		V(DataIn) <+ transition(din, tpd, tr, tf);
+		V(DataInB) <+ transition(dinb, tpd, tr, tf);
+	end
+endmodule

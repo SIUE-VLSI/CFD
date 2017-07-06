@@ -1,0 +1,19 @@
+// VerilogA for Lib, HPF, veriloga
+
+`include "constants.vams"
+`include "disciplines.vams"
+
+module HPF(OUT, IN);
+	output OUT;
+	electrical OUT;
+	input IN;
+	electrical IN;
+
+	parameter real R = 1k from(0:inf);
+	parameter real C = 1p from(0:inf);
+
+	analog begin
+		I(IN, OUT) <+ V(IN, OUT)/R;
+		I(OUT) <+ C*ddt(V(OUT));
+	end
+endmodule

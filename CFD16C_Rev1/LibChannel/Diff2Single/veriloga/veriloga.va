@@ -1,0 +1,42 @@
+// VerilogA for Lib, diff2single, veriloga
+
+`include "constants.vams"
+`include "disciplines.vams"
+
+`define Pi 3.14159
+
+module diff2single(outp, inp, inm, avdd, avss, svss, agnd);
+	input inp, inm, avdd, avss, svss, agnd;
+	output outp;
+	electrical inp, inm, avdd, avss, svss, agnd, outp;
+
+	parameter real GBW = 625M; //gain bandwidth product
+	parameter real A0 = 50; //low frequency gain
+	parameter real SR = 150M; //slew rate
+	
+	//laplace function parameters.
+	real wd, wu;
+	real vid, vout;
+	real num[1:0];
+	real den[1:0];	
+
+	analog begin
+		@(initial_step) begin
+			wu = 2*`Pi*GBW;
+			wd = wu/A0;
+			num[0] = wu;
+			num[1] = 0;
+			den[0] = wd;
+			den[1] = 1.0;
+		end
+		vid = V(inp) - V(inm); //compute input differential
+		vout = laplace_nd(vid, num, den); //compute the laplace transform
+
+		/* rail the output */
+		if(vout > V(avdd)) vout = V(avdd); 
+		if(vout < V(avss)) vout = V(avss);
+
+		/* slew the output voltage */
+		V(outp) <+ slew(vout, SR);
+	end
+endmodule
